@@ -1,0 +1,10 @@
+schema App {
+    message: string { 
+        default: "Hello from cfgsafe!" 
+    }
+    
+    port: int { 
+        default: 8080 
+        range: 1..65535 
+    }
+}

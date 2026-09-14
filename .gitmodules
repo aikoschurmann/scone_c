@@ -1,0 +1,3 @@
+[submodule "vendor/cfgsafe"]
+	path = vendor/cfgsafe
+	url = https://github.com/aikoschurmann/cfgsafe
