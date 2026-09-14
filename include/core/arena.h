@@ -33,7 +33,6 @@ typedef struct {
     ArenaBlock *head;
     size_t      block_size;
     size_t      block_size_max;
-    size_t      total_allocd;
 } Arena;
 
 typedef struct {

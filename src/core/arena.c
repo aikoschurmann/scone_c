@@ -33,6 +33,14 @@ static void arena_install_block(Arena *a, ArenaBlock *b) {
     a->limit  = b->data + b->capacity;
 }
 
+static void free_block_chain(ArenaBlock *b) {
+    while (b) {
+        ArenaBlock *next = b->next;
+        free(b);
+        b = next;
+    }
+}
+
 // ---------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------
@@ -52,37 +60,33 @@ Arena *arena_create(size_t initial_capacity) {
     a->limit          = b->data + b->capacity;
     a->block_size     = b->capacity;
     a->block_size_max = ARENA_MAX_BLOCK_SIZE;
-    a->total_allocd   = 0;
     return a;
 }
 
 void arena_destroy(Arena *a) {
     if (!a) return;
-    ArenaBlock *b = a->head;
-    while (b) {
-        ArenaBlock *next = b->next;
-        free(b);
-        b = next;
-    }
+    free_block_chain(a->head);
     free(a);
 }
 
 void arena_reset(Arena *a) {
     if (!a) return;
-    // Walk to the oldest (last) block, free all newer blocks.
+    
+    // The head block might not be the oldest block, so we free everything
+    // except the last one (which is the oldest and usually the largest).
     ArenaBlock *b = a->head;
     while (b->next) {
         ArenaBlock *next = b->next;
         free(b);
         b = next;
     }
-    b->used         = 0;
-    b->next         = NULL;
-    a->head         = b;
-    a->cursor       = b->data;
-    a->limit        = b->data + b->capacity;
-    a->block_size   = b->capacity;
-    a->total_allocd = 0;
+    
+    // b is now the only block left.
+    b->used       = 0;
+    a->head       = b;
+    a->cursor     = b->data;
+    a->limit      = b->data + b->capacity;
+    a->block_size = b->capacity;
 }
 
 // ---------------------------------------------------------------
@@ -102,17 +106,13 @@ void *arena_alloc_slow(Arena *a, size_t size, size_t align) {
         LOG_ERR("arena: OOM — failed to allocate block of %zu bytes", new_size);
         return NULL;
     }
+    
     a->block_size = nb->capacity;
     arena_install_block(a, nb);
 
-    // Now the fast path will succeed on retry. Inline it here to avoid
-    // an extra call frame.
-    uintptr_t cur     = (uintptr_t)a->cursor;
-    uintptr_t aligned = (cur + align - 1) & ~(uintptr_t)(align - 1);
-    char     *next    = (char *)aligned + size;
-    a->cursor         = next;
-    a->total_allocd  += size;
-    return (void *)aligned;
+    // Re-enter the fast path now that we have a fresh block.
+    // Because arena_alloc is inline, this optimizes perfectly.
+    return arena_alloc(a, size, align);
 }
 
 // ---------------------------------------------------------------
@@ -120,12 +120,17 @@ void *arena_alloc_slow(Arena *a, size_t size, size_t align) {
 // ---------------------------------------------------------------
 
 void arena_restore(Arena *a, ArenaCheckpoint cp) {
-    // Free any blocks allocated after the checkpoint.
-    while (a->head != cp.block) {
-        ArenaBlock *old = a->head;
-        a->head = old->next;
-        free(old);
+    // Isolate the chain of blocks that were allocated after the checkpoint.
+    if (a->head != cp.block) {
+        ArenaBlock *b = a->head;
+        while (b->next != cp.block) {
+            b = b->next;
+        }
+        b->next = NULL; // disconnect the new chain
+        free_block_chain(a->head);
+        a->head = cp.block;
     }
+
     // Restore cursor within the checkpoint block.
     a->head->used = cp.used;
     a->cursor     = a->head->data + cp.used;
