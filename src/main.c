@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "error.h"
+#include "core/error.h"
 #include "scone_config.h"
-#include "sys.h"
+#include "sys/sys.h"
 
 int main(int argc, const char **argv) {
     SconeConfig_t cfg;

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "colors.h"
+#include "core/colors.h"
 
 // Log Levels
 #define LOG_LVL_DEBUG 0

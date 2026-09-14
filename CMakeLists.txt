@@ -41,12 +41,12 @@ foreach(SCHEMA_FILE ${SCHEMAS})
     )
 endforeach()
 
-# 3. Define the main executable
-file(GLOB SRCS "${CMAKE_SOURCE_DIR}/src/*.c")
+# 3. Collect all .c files recursively under src/ (covers src/core/, src/engine/, src/sys/)
+file(GLOB_RECURSE SRCS "${CMAKE_SOURCE_DIR}/src/*.c")
 add_executable(scone ${SRCS} ${GEN_HEADERS})
 
-# Include directories
-target_include_directories(scone PRIVATE 
-    ${CMAKE_SOURCE_DIR}/include 
+# include/ root covers all subfolders (core/, engine/, sys/)
+target_include_directories(scone PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
     ${GEN_DIR}
 )
