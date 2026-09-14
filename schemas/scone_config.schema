@@ -1,0 +1,12 @@
+    schema SconeConfig {
+        // Max AST depth to explore (determines the search space size)
+        cost: int { 
+            default: 1 
+            range: 1..10 
+        }
+        // Number of CPU cores to use (0 = auto-detect system max)
+        threads: int { 
+            default: 0 
+            range: 0..256 
+        }
+    }
